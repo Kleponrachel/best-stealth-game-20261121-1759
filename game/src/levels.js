@@ -1,148 +1,204 @@
-// The three floors of the Meridian Gallery, drawn as text maps. One character a tile:
-//   # wall (blocks feet and eyes)   . floor   C crate (cover: blocks feet and eyes)
-//   B bush (walkable, hides you, blocks eyes)   P player start   E exit
-//   D locked door (needs the keycard)   K keycard   * aurora gem   G guard spawn
-// Guard patrols are waypoint lists in tile coordinates; guards walk them with a
-// pathfinder, so a route may bend around crates.
+// The Meridian Gallery in three floors, each one a grid of characters.
+// One character per tile:
+//   #  wall — stops feet and eyes
+//   .  bare floor
+//   C  crate — solid cover, stops feet and eyes
+//   B  bush — walkable, hides whoever stands in it, stops eyes
+//   P  where the thief starts
+//   E  the exit
+//   D  the vault door (locked until the keycard opens it)
+//   K  the blue keycard
+//   *  an aurora gem
+//   G  where a guard starts patrolling
+// A guard's route is a list of tile waypoints; the guard walks between them
+// with the pathfinder, so a route may bend around crates and bushes.
 import { COLS, ROWS } from './config.js';
 
 export const LEVELS = [
   {
-    name: 'The Gallery',
-    sub: 'Slip past two guards. Reach the green exit.',
-    parSeconds: 90,
-    guardSpeed: 1,
-    map: [
+    title: 'The Gallery',
+    blurb: 'Slip past two guards. Reach the green exit.',
+    par: 90,
+    pace: 1,
+    rows: [
       '##############################',
-      '#P....#........C......#......#',
-      '#.....#.......G.......#..*...#',
-      '#..C..#....B.....B....#......#',
-      '#.....#...............#..C...#',
-      '#......###.###########.......#',
+      '#P....#......C.....#......*..#',
+      '#.....#......G.B...#....C....#',
+      '#.....#............#.....B...#',
+      '#..C..#....B.......#.........#',
+      '#......###.##########........#',
       '#............................#',
-      '#.B.....C......#.....C.......#',
-      '#........C....#.....C....*...#',
-      '#....####.....#......####....#',
+      '#.B.....C.............C......#',
+      '#........C.............B..*..#',
+      '#....####......#.......####..#',
       '#....#........G.....#........#',
-      '#....#...............#....E..#',
-      '#....#....C....C....#........#',
       '#....#...............#....*..#',
-      '#..*....B.......B............#',
-      '#............................#',
-      '##############################',
-    ],
-    patrols: [
-      [[14, 2], [21, 2], [21, 4], [14, 4]],
-      [[14, 10], [7, 10], [7, 13], [19, 13], [19, 10]],
-    ],
-  },
-  {
-    name: 'The Vault Wing',
-    sub: 'Find the blue keycard, unlock the vault door, reach the exit.',
-    parSeconds: 120,
-    guardSpeed: 1.08,
-    map: [
-      '##############################',
-      '#P....#......C.......#.......#',
-      '#..B..#..............#...*..*#',
-      '#.....#..C....GB.....#.......#',
-      '#..C..#..............#.C.....#',
-      '#......##.###########...#....#',
-      '#..B.....................#...#',
-      '#.B......C......#....C.G.#...#',
-      '#........C......#.....C......#',
-      '#....#####......#.....####..K#',
-      '#....#........G.....#....B...#',
-      '#....#...............#....D..#',
-      '#....#....C....C....#....E...#',
-      '#....#...............#########',
-      '#..*....B.......B........*...#',
-      '#............................#',
-      '##############################',
-    ],
-    patrols: [
-      [[14, 2], [20, 2], [20, 1], [8, 1]],
-      [[14, 10], [7, 10], [7, 13], [19, 13], [19, 10]],
-      [[24, 7], [23, 7], [23, 8], [27, 8], [27, 7]],
-    ],
-  },
-  {
-    name: "The Director's Floor",
-    sub: 'Four guards, faster patrols. Ghost it: never raise the alarm.',
-    parSeconds: 150,
-    guardSpeed: 1.12,
-    map: [
-      '##############################',
-      '#P...#.......CG.......#..*...#',
-      '#....#..B..........B..#..*..*#',
-      '#.C..#.......C........#.C....#',
+      '#....#....C.....C...#........#',
       '#....#...............#.......#',
-      '#.....##.#############...#...#',
-      '#..B.....................#...#',
-      '#.B.....C.......#....C.G.#...#',
-      '#.......C.......#....C.......#',
-      '#....####.......#.....####..K#',
-      '#....#...G............#...B..#',
-      '#....#...............#....D..#',
-      '#....#....C....C......#....E.#',
-      '#....#...............#########',
-      '#..*....B.......B........*...#',
-      '#..........G.................#',
+      '#..*....B.......B............#',
+      '#...........................E#',
       '##############################',
     ],
-    patrols: [
-      [[9, 10], [20, 10], [20, 12], [6, 12]],
-      [[11, 15], [22, 15], [22, 14], [11, 14]],
+    routes: [
+      [[13, 2], [20, 2], [20, 4], [9, 4]],
+      [[14, 10], [19, 10], [19, 12], [8, 12], [8, 10]],
+    ],
+  },
+  {
+    title: 'The Vault Wing',
+    blurb: 'Find the blue keycard, unlock the vault door, reach the exit.',
+    par: 120,
+    pace: 1.08,
+    rows: [
+      '##############################',
+      '#P....#.......C......#......*#',
+      '#..B..#..............#.G....*#',
+      '#.....#..C.....GB.....#..C..K#',
+      '#..C..#..............#.C....B#',
+      '#......##.###########...#....#',
+      '#..B.......B......B..........#',
+      '#.B......C......#....C...#...#',
+      '#........C......#.....C......#',
+      '#....#####......#.....####...#',
+      '#....#...............#...B...#',
+      '#....#...............#....D..#',
+      '#....#....C....C....#.....E..#',
+      '#....#...............#########',
+      '#..*....B.......B...*BG......#',
+      '#............................#',
+      '##############################',
+    ],
+    routes: [
+      [[23, 2], [27, 2], [27, 4], [24, 4]],
+      [[15, 3], [20, 3], [20, 1], [8, 1]],
+      [[22, 14], [27, 14], [27, 15], [22, 15]],
+    ],
+  },
+  {
+    title: "The Director's Floor",
+    blurb: 'Four guards, faster patrols. Ghost it: never raise the alarm.',
+    par: 150,
+    pace: 1.12,
+    rows: [
+      '##############################',
+      '#P...#.......CG.......#..*..*#',
+      '#....#..B..........B..#G....*#',
+      '#.C..#.......C........#.C...K#',
+      '#....#...............#......B#',
+      '#.....##.#############...#...#',
+      '#..B.......B......B..........#',
+      '#.B.....C.......#....C...#...#',
+      '#.......C.......#....C.......#',
+      '#....####.......#.....####...#',
+      '#....#G..............#...B...#',
+      '#....#...............#....D..#',
+      '#....#....C....C......#...E..#',
+      '#....#...............#########',
+      '#..*....B.......B...*BG......#',
+      '#............................#',
+      '##############################',
+    ],
+    routes: [
       [[14, 1], [21, 1], [21, 3], [7, 3]],
-      [[24, 7], [23, 7], [23, 8], [27, 8], [27, 7]],
+      [[23, 2], [27, 2], [27, 4], [23, 4]],
+      [[6, 10], [6, 13], [10, 13], [10, 10]],
+      [[22, 14], [27, 14], [27, 15], [22, 15]],
     ],
   },
 ];
 
-// A tile is solid when feet cannot cross it. Bushes are walkable; doors open with a keycard.
+// Can feet cross this tile? Bushes are open ground; a shut door is not.
 export function isSolidTile(tile, doorOpen) {
-  return tile === '#' || tile === 'C' || (tile === 'D' && !doorOpen);
+  switch (tile) {
+    case '#':
+    case 'C':
+      return true;
+    case 'D':
+      return !doorOpen;
+    default:
+      return false;
+  }
 }
 
-// A tile blocks a guard's line of sight. Bushes hide what is behind them.
+// Can eyes cross this tile? Bushes hide what stands behind them.
 export function blocksSightTile(tile, doorOpen) {
-  return tile === '#' || tile === 'C' || tile === 'B' || (tile === 'D' && !doorOpen);
+  switch (tile) {
+    case '#':
+    case 'C':
+    case 'B':
+      return true;
+    case 'D':
+      return !doorOpen;
+    default:
+      return false;
+  }
 }
 
-// Parse a level map into a grid plus the things standing on it: player start,
-// exit, gems, keycard, door and guard spawns. Throws when the map is malformed,
-// so a broken level fails loudly at boot instead of silently in front of the player.
-export function parseLevel(def) {
-  if (def.map.length !== ROWS) throw new Error(`${def.name}: map has ${def.map.length} rows, needs ${ROWS}`);
+// Turn one floor's text grid into a walkable grid plus the things on it:
+// the start, the exit, gems, the keycard, the vault door and guard spawns.
+// A malformed floor throws here, at boot, instead of failing mid-game.
+export function parseLevel(floor) {
+  if (floor.rows.length !== ROWS) {
+    throw new Error(`${floor.title}: ${floor.rows.length} rows, expected ${ROWS}`);
+  }
   const grid = [];
-  let player = null;
+  const gems = [];
+  const spawns = [];
+  let start = null;
   let exit = null;
   let door = null;
   let keycard = null;
-  const gems = [];
-  const guardSpawns = [];
   for (let row = 0; row < ROWS; row += 1) {
-    const line = def.map[row];
-    if (line.length !== COLS) throw new Error(`${def.name}: row ${row} has ${line.length} tiles, needs ${COLS}`);
-    const gridRow = [];
-    for (let col = 0; col < COLS; col += 1) {
-      const ch = line[col];
-      let tile = ch;
-      if (ch === 'P') { player = { col, row }; tile = '.'; }
-      else if (ch === 'E') { exit = { col, row }; tile = '.'; }
-      else if (ch === 'D') { door = { col, row }; tile = 'D'; }
-      else if (ch === 'K') { keycard = { col, row }; tile = '.'; }
-      else if (ch === '*') { gems.push({ col, row, taken: false }); tile = '.'; }
-      else if (ch === 'G') { guardSpawns.push({ col, row }); tile = '.'; }
-      else if ('#.CB'.indexOf(ch) === -1) throw new Error(`${def.name}: unknown tile '${ch}' at ${col},${row}`);
-      gridRow.push(tile);
+    const line = floor.rows[row];
+    if (line.length !== COLS) {
+      throw new Error(`${floor.title}: row ${row} is ${line.length} wide, expected ${COLS}`);
     }
-    grid.push(gridRow);
+    const out = [];
+    for (let col = 0; col < COLS; col += 1) {
+      const mark = line[col];
+      let tile = mark;
+      switch (mark) {
+        case 'P':
+          start = { col, row };
+          tile = '.';
+          break;
+        case 'E':
+          exit = { col, row };
+          tile = '.';
+          break;
+        case 'D':
+          door = { col, row };
+          break;
+        case 'K':
+          keycard = { col, row };
+          tile = '.';
+          break;
+        case '*':
+          gems.push({ col, row, taken: false });
+          tile = '.';
+          break;
+        case 'G':
+          spawns.push({ col, row });
+          tile = '.';
+          break;
+        case '#':
+        case '.':
+        case 'C':
+        case 'B':
+          break;
+        default:
+          throw new Error(`${floor.title}: '${mark}' at ${col},${row} is not a tile`);
+      }
+      out.push(tile);
+    }
+    grid.push(out);
   }
-  if (!player) throw new Error(`${def.name}: no player start`);
-  if (!exit) throw new Error(`${def.name}: no exit`);
-  if (guardSpawns.length !== def.patrols.length) {
-    throw new Error(`${def.name}: ${guardSpawns.length} guard spawns but ${def.patrols.length} patrols`);
+  if (!start) throw new Error(`${floor.title}: no player start`);
+  if (!exit) throw new Error(`${floor.title}: no exit`);
+  if (spawns.length !== floor.routes.length) {
+    throw new Error(
+      `${floor.title}: ${spawns.length} guard spawns but ${floor.routes.length} routes`,
+    );
   }
-  return { def, grid, player, exit, door, keycard, gems, guardSpawns };
+  return { floor, grid, start, exit, door, keycard, gems, spawns };
 }

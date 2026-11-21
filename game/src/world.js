@@ -1,7 +1,8 @@
-// The game's rules and state, with no drawing and no browser in it: the player, the
-// guards, the gems, the keycard and the locked door, the clock and the score. step()
-// advances one fixed step and returns what happened as bit flags, so the caller can
-// react (sound, screens) without the world knowing about either.
+// The rules and the state, with no drawing and no browser in it: the thief,
+// the guards, the gems, the keycard and the vault door, the clock and the
+// score. stepWorld() moves everything one fixed step and reports what happened
+// as bit flags, so the caller can react (sound, screens) without the world
+// knowing about either.
 import { FIELD_X, FIELD_Y, GUARD, SCORE, STEP, TILE } from './config.js';
 import { LEVELS, parseLevel } from './levels.js';
 import { createPlayer, movePlayer } from './player.js';
@@ -17,6 +18,17 @@ export const EVENT_CAUGHT = 32;
 export const EVENT_LEVEL = 64;
 export const EVENT_WIN = 128;
 export const EVENT_STEP = 256;
+
+function countGems(floor) {
+  return floor.rows.reduce(
+    (total, line) => total + [...line].filter((mark) => mark === '*').length,
+    0,
+  );
+}
+
+function gap(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
 
 export function createWorld() {
   const world = {
@@ -38,7 +50,7 @@ export function createWorld() {
     gemsTaken: 0,
     gemsTotal: 0,
     totalGemsTaken: 0,
-    totalGems: LEVELS.reduce((sum, def) => sum + def.map.join('').split('*').length - 1, 0),
+    totalGems: LEVELS.reduce((sum, floor) => sum + countGems(floor), 0),
     status: 'playing',
     catchReason: '',
     maxSuspicion: 0,
@@ -53,14 +65,14 @@ export function createWorld() {
 }
 
 export function loadLevel(world, index) {
-  const def = LEVELS[index];
-  const parsed = parseLevel(def);
+  const floor = LEVELS[index];
+  const parsed = parseLevel(floor);
   world.levelIndex = index;
-  world.level = def;
+  world.level = floor;
   world.grid = parsed.grid;
-  world.player = createPlayer(parsed.player);
-  world.guards = parsed.guardSpawns.map((spawn, i) =>
-    createGuard(spawn, def.patrols[i], def.guardSpeed),
+  world.player = createPlayer(parsed.start);
+  world.guards = parsed.spawns.map((spawn, i) =>
+    createGuard(spawn, floor.routes[i], floor.pace),
   );
   world.exit = tileCenter(parsed.exit.col, parsed.exit.row);
   world.door = parsed.door ? tileCenter(parsed.door.col, parsed.door.row) : null;
@@ -81,7 +93,7 @@ export function loadLevel(world, index) {
   world.alarmLevel = 0;
 }
 
-// Start the whole campaign again from floor one.
+// Start the whole campaign again from the first floor.
 export function resetCampaign(world) {
   world.score = 0;
   world.time = 0;
@@ -89,22 +101,18 @@ export function resetCampaign(world) {
   loadLevel(world, 0);
 }
 
-function dist(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-// Advance the world one fixed step. `input` is { dx, dy, sneak, click } where dx/dy
-// is a unit direction (or 0) and click is a point to walk toward, or null.
+// Move the world one fixed step. `input` is { dx, dy, sneak, click }: dx/dy a
+// unit direction (or 0) and click a point to walk toward, or null.
 export function stepWorld(world, input, dt) {
   if (world.status !== 'playing') return 0;
   let events = 0;
   world.time += dt;
   world.levelTime += dt;
 
-  // Steering: keys win over a click target; reaching the target clears it.
+  // Steering: held keys win over a click target; arriving clears the target.
   let dx = input.dx;
   let dy = input.dy;
-  if ((dx === 0 && dy === 0) && input.click) {
+  if (dx === 0 && dy === 0 && input.click) {
     const toX = input.click.x - world.player.x;
     const toY = input.click.y - world.player.y;
     const len = Math.hypot(toX, toY);
@@ -127,10 +135,9 @@ export function stepWorld(world, input, dt) {
     if (world.stepTick % 14 === 0) events |= EVENT_STEP;
   }
 
-  // Pickups: gems, then the keycard, then the locked door beside it.
-  for (let i = 0; i < world.gems.length; i += 1) {
-    const gem = world.gems[i];
-    if (!gem.taken && dist(world.player, gem.pos) < TILE * 0.7) {
+  // Pickups: gems first, then the keycard, then the door beside it.
+  for (const gem of world.gems) {
+    if (!gem.taken && gap(world.player, gem.pos) < TILE * 0.7) {
       gem.taken = true;
       world.gemsTaken += 1;
       world.totalGemsTaken += 1;
@@ -139,31 +146,30 @@ export function stepWorld(world, input, dt) {
       events |= EVENT_GEM;
     }
   }
-  if (world.keycard && !world.hasKeycard && dist(world.player, world.keycard) < TILE * 0.7) {
+  if (world.keycard && !world.hasKeycard && gap(world.player, world.keycard) < TILE * 0.7) {
     world.hasKeycard = true;
     world.keycard = null;
     world.score += SCORE.keycard;
     world.levelScore += SCORE.keycard;
     events |= EVENT_KEY;
   }
-  if (world.doorTile && !world.doorOpen && world.hasKeycard && dist(world.player, world.door) < TILE * 0.9) {
+  if (world.doorTile && !world.doorOpen && world.hasKeycard && gap(world.player, world.door) < TILE * 0.9) {
     world.doorOpen = true;
     world.grid[world.doorTile.row][world.doorTile.col] = '.';
     events |= EVENT_DOOR;
   }
 
   // Guards: suspicion, moods, the catch.
-  for (let i = 0; i < world.guards.length; i += 1) {
-    const guard = world.guards[i];
-    const event = updateGuard(guard, dt, world, world.time);
+  for (const guard of world.guards) {
+    const outcome = updateGuard(guard, dt, world);
     world.maxSuspicion = Math.max(world.maxSuspicion, guard.suspicion);
-    if (event === 'spotted') {
+    if (outcome === 'spotted') {
       world.everSpotted = true;
       events |= EVENT_SPOTTED;
-    } else if (event === 'alerted') {
+    } else if (outcome === 'alerted') {
       world.everSpotted = true;
       events |= EVENT_ALERT;
-    } else if (event === 'caught') {
+    } else if (outcome === 'caught') {
       world.status = 'caught';
       world.catchReason = guard.suspicion >= GUARD.alertAt
         ? 'A guard ran you down.'
@@ -171,18 +177,20 @@ export function stepWorld(world, input, dt) {
       return events | EVENT_CAUGHT;
     }
   }
-  const hottest = world.guards.reduce((m, g) => Math.max(m, g.suspicion), 0);
-  world.alarmLevel = hottest;
+  world.alarmLevel = world.guards.reduce((hot, guard) => Math.max(hot, guard.suspicion), 0);
 
-  // The exit: open when there is no locked door, or once it stands open.
-  if (world.status === 'playing' && dist(world.player, world.exit) < TILE * 0.7) {
+  // The exit: open when there is no vault door, or once it stands open.
+  if (world.status === 'playing' && gap(world.player, world.exit) < TILE * 0.7) {
     if (world.doorTile && !world.doorOpen) {
       // The vault door is still shut: the exit stays out of reach behind it.
     } else {
-      const timeBonus = Math.max(0, Math.round((world.level.parSeconds - world.levelTime) * SCORE.levelTimeBonus));
-      world.score += timeBonus;
-      world.levelScore += timeBonus;
-      world.lastLevelBonus = timeBonus;
+      const bonus = Math.max(
+        0,
+        Math.round((world.level.par - world.levelTime) * SCORE.levelTimeBonus),
+      );
+      world.score += bonus;
+      world.levelScore += bonus;
+      world.lastLevelBonus = bonus;
       if (world.levelIndex + 1 >= LEVELS.length) {
         if (!world.everSpotted) {
           world.score += SCORE.ghostBonus;

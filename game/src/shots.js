@@ -265,9 +265,10 @@ function follow(pilot, world, dt, target, hiding) {
   if (!hiding && !seenNow && coneDangerAt(world, nodeTile.col, nodeTile.row) > 0.5) {
     pilot.waitTime += dt;
     // Hidden in a bush, the player is safe: wait as long as it takes for the cone
-    // to sweep past. Exposed in the open, push through after a second instead of
-    // waiting forever at a chokepoint.
-    if (pilot.waitTime < 1.0 || player.hidden) return { dx: 0, dy: 0, sneak: true, waiting: true };
+    // to sweep past. Exposed in the open, push through after a few seconds
+    // instead of waiting forever at a chokepoint: a guard's cone usually sweeps
+    // past within a patrol leg, so a few seconds of patience beats a sprint.
+    if (pilot.waitTime < 4.0 || player.hidden) return { dx: 0, dy: 0, sneak: true, waiting: true };
   }
   pilot.waitTime = 0;
   const nearGuard = world.guards.some((g) => Math.hypot(g.x - player.x, g.y - player.y) < 340);

@@ -1,10 +1,12 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s steps
-// (several in a slow frame, none in a fast one), and the renderer paints what is there. The game
-// moves between six screens: title, play, paused, level clear, caught and won.
+// Boot and the one loop: input is read every frame, the world moves in fixed
+// 1/60 s steps (several in a slow frame, none in a fast one), and the renderer
+// paints what is there. Six screens: title, play, paused, level clear, caught
+// and won. The loop also tracks how loud the thief is being — walking raises
+// the noise meter the HUD shows, sneaking or standing still lets it drain.
 //
-// ?seed=N fixes the world (kept for repeatable screenshots). ?shot=start|play|caught|win
-// stages that scene instead of running the loop, paints it twice and sets
-// window.__shotReady for a screenshot.
+// ?seed=N fixes the world (kept for repeatable screenshots). ?shot=start|play|
+// caught|win stages that scene instead of running the loop, paints it twice
+// and sets window.__shotReady for a screenshot.
 import { BEST_KEY, STEP } from './config.js';
 import { createWorld, loadLevel, resetCampaign, stepWorld, EVENT_ALERT, EVENT_CAUGHT, EVENT_DOOR, EVENT_GEM, EVENT_KEY, EVENT_LEVEL, EVENT_SPOTTED, EVENT_STEP, EVENT_WIN } from './world.js';
 import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, createInput } from './input.js';
@@ -12,7 +14,8 @@ import { createRenderer, SCREEN_CAUGHT, SCREEN_LEVEL, SCREEN_PAUSED, SCREEN_PLAY
 import { createAudio } from './audio.js';
 import { stageShot } from './shots.js';
 
-// The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed.
+// The longest frame the loop catches up on; a longer stall (a hidden tab) is
+// dropped, not replayed.
 const MAX_FRAME = 0.25;
 
 const params = new URLSearchParams(window.location.search);
@@ -45,11 +48,11 @@ function saveBest(value) {
   }
 }
 
-function runShot(name) {
+function bootShot(name) {
   const scene = stageShot(name, world);
   let painted = 0;
   function paint() {
-    renderer.draw(world, scene.screen, scene.best, nowSeconds(), null, null);
+    renderer.draw(world, scene.screen, scene.best, nowSeconds(), null, null, 0);
     painted += 1;
     if (painted < 2) requestAnimationFrame(paint);
     else window.__shotReady = true;
@@ -57,7 +60,7 @@ function runShot(name) {
   requestAnimationFrame(paint);
 }
 
-function runGame() {
+function bootGame() {
   const input = createInput(canvas);
   let screen = SCREEN_TITLE;
   let best = readBest();
@@ -68,6 +71,9 @@ function runGame() {
   let scoreBeforeLevel = 0;
   let gemsBeforeLevel = 0;
   let guardStepBucket = world.guards.map(() => 0);
+  // Noise meter, 0..1: walking loud raises it, sneaking or standing drains it.
+  // Display only — the guards hear footsteps through their own rule.
+  let noise = 0;
 
   // Screen readers (and anyone watching the page's text) hear the screen changes.
   function announce(message) {
@@ -75,8 +81,8 @@ function runGame() {
   }
 
   function showBanner(title, sub, seconds) {
-    const now = nowSeconds();
-    banner = { title, sub, from: now, until: now + seconds };
+    const at = nowSeconds();
+    banner = { title, sub, from: at, until: at + seconds };
   }
 
   function startLevel(index) {
@@ -85,9 +91,10 @@ function runGame() {
     loadLevel(world, index);
     guardStepBucket = world.guards.map(() => 0);
     clickTarget = null;
-    showBanner(world.level.name, world.level.sub, 3);
+    noise = 0;
+    showBanner(world.level.title, world.level.blurb, 3);
     screen = SCREEN_PLAY;
-    announce(`Floor ${index + 1}: ${world.level.name}. ${world.level.sub}`);
+    announce(`Floor ${index + 1}: ${world.level.title}. ${world.level.blurb}`);
   }
 
   function startCampaign() {
@@ -191,6 +198,9 @@ function runGame() {
     if (clickTarget && Math.hypot(clickTarget.x - world.player.x, clickTarget.y - world.player.y) < 8) {
       clickTarget = null;
     }
+    // Loud walking fills the meter; sneaking or standing still drains it.
+    if (world.player.moving && !world.player.sneaking) noise = Math.min(1, noise + STEP * 1.6);
+    else noise = Math.max(0, noise - STEP * 1.1);
     guardFootsteps();
     handleEvents(events);
   }
@@ -205,7 +215,7 @@ function runGame() {
       accumulator -= STEP;
     }
     if (screen !== SCREEN_TITLE && screen !== SCREEN_PLAY) accumulator = 0;
-    renderer.draw(world, screen, best, nowSeconds(), banner, clickTarget);
+    renderer.draw(world, screen, best, nowSeconds(), banner, clickTarget, noise);
   }
 
   // Leaving the tab pauses a running game rather than letting guards hunt unseen.
@@ -220,5 +230,5 @@ function runGame() {
   requestAnimationFrame(frame);
 }
 
-if (shot) runShot(shot);
-else runGame();
+if (shot) bootShot(shot);
+else bootGame();
