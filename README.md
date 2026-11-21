@@ -1,51 +1,44 @@
-# Night Vault — a stealth game
+# Night Vault
 
-[![make.fun · best-stealth-game-20261121-1759](https://make.fun/badge/best-stealth-game-20261121-1759.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759?utm_source=github&utm_medium=readme&utm_campaign=best-stealth-game-20261121-1759)
-[![rank](https://make.fun/badge/best-stealth-game-20261121-1759/Kleponrachel/best-stealth-game-20261121-1759/rank.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759?utm_source=github&utm_medium=readme&utm_campaign=best-stealth-game-20261121-1759)
-[![reward](https://make.fun/badge/best-stealth-game-20261121-1759/Kleponrachel/best-stealth-game-20261121-1759/reward.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759?utm_source=github&utm_medium=readme&utm_campaign=best-stealth-game-20261121-1759)
+[![Competition](https://make.fun/badge/best-stealth-game-20261121-1759.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
+[![Rank](https://make.fun/badge/best-stealth-game-20261121-1759/Kleponrachel/best-stealth-game-20261121-1759/rank.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
+[![Reward](https://make.fun/badge/best-stealth-game-20261121-1759/Kleponrachel/best-stealth-game-20261121-1759/reward.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
 
-**Night Vault** is a top-down stealth game in three floors of the Meridian Gallery.
-Steal the aurora gems and reach the green EXIT — unseen.
+A top-down 2D stealth game that runs entirely offline in a desktop browser — no network requests, no outside libraries. You are a thief inside Meridian Gallery after dark: lift all 13 gems across three floors and slip out the exit without ever being caught.
 
 ## How to play
 
-Serve `game/` with any static server (for example `node serve.ts`, then open
-http://localhost:8080) and play in a desktop browser. No network request: every
-script, sound and image is a local file or synthesized live.
+- **Move:** WASD or arrow keys — or click anywhere on the floor to walk there.
+- **Sneak:** hold Shift. Slower, silent, and much harder for guards to spot.
+- **Guards:** each one sweeps a yellow vision cone. Walls, crates and bushes block their sight, and bushes hide you completely. If the alarm meter fills halfway a guard comes to check where you were last seen; if it fills all the way they chase you — and being grabbed means game over. Break line of sight to cool the meter down.
+- **Noise:** walking out loud carries. Guards nearby hear your steps and come to investigate. Sneaking makes no sound.
+- **Vault doors:** floors 2 and 3 lock the exit behind a vault door. Find the blue keycard first.
+- **Scoring:** 100 points per gem, a floor-clear bonus with a time bonus, and a **GHOST bonus of +400** if you finish the last floor without ever being spotted. Your best score is saved in localStorage.
 
-- **Move** — WASD / arrow keys, or click the floor to walk there
-- **Sneak** — hold SHIFT: slower, silent, harder to spot
-- **Vision cones** — the yellow cones are a guard's eyes. Walls, crates and bushes
-  block them; bushes hide you completely
-- **Detection** — the meter fills while a guard sees you. At half, guards come to
-  look; full, they run you down. Break line of sight to cool off
-- **Noise** — walking is loud; guards nearby hear footsteps and investigate
-- **Floors 2 and 3** — the exit sits behind a locked vault door: find the blue
-  keycard first
-- **Ghost bonus** — finish the last floor without ever being spotted for +400
+## Floors
 
-## The game
+1. **The Gallery** — 2 guards, 4 gems. Learn the cones.
+2. **The Vault Wing** — 3 guards, 4 gems, keycard + vault door.
+3. **The Director's Floor** — 4 faster guards, 5 gems, keycard + vault door.
 
-- 3 hand-designed floors: The Gallery (2 guards), The Vault Wing (3 guards,
-  keycard + vault door), The Director's Floor (4 guards, faster patrols)
-- Guards patrol waypoints, pause and scan, investigate noises and last-seen spots,
-  chase when the meter fills, and give up and return to patrol
-- Ray-cast vision cones that bend around walls and crates; night lighting with a
-  pool of light around the player
-- Score from gems, keycard and time bonus; best score kept in the browser
-- WebAudio sound, synthesized live: footsteps (yours and the guards'), pickup
-  chimes, alert stings, win arpeggio. M mutes
+## Run it locally
 
-## Layout
+```sh
+node serve.ts
+# open http://localhost:8080
+```
 
-- `game/` — the playable game as static files (`index.html` + `src/`, one file per
-  job: `levels`, `vision`, `guards`, `player`, `world`, `render`, `input`,
-  `audio`, `pathfind`, `shots`)
-- `screenshots/` — 4 real renders of the game: title, play, caught, floor clear
-- `main.ts` — the hand-in program: copies `game/` and `screenshots/` to `/output`
-  and writes `/output/dossier.json`
-- `serve.ts` — a tiny static server for local play
-- `vendor/makefun-game.ts` — the kit's dossier library, unchanged
+## Shots
+
+The game supports deterministic staged scenes for screenshots: `?shot=start`, `?shot=play`, `?shot=caught`, `?shot=win` (each with `&seed=1`). Add `?pilot=1` to watch the built-in autopilot play a floor by itself.
+
+## Build the submission dossier
+
+```sh
+MAKEFUN_OUTPUT_DIR=/output node main.ts
+```
+
+This copies `game/` and `screenshots/` into the output directory and writes `dossier.json` via the kit's `buildDossier`.
 
 ## License
 
